@@ -632,6 +632,8 @@ static void WIN_CheckICMProfileChanged(SDL_Window* window)
     }
 }
 
+#define SDL_MODAL_LOOP_TIMER 7534
+
 LRESULT CALLBACK
 WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -1203,6 +1205,30 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         break;
 
+    case WM_ENTERSIZEMOVE:
+    case WM_ENTERMENULOOP:
+        {
+            SetTimer(hwnd, SDL_MODAL_LOOP_TIMER, 1, NULL);
+            SwitchToFiber(g_MainFiber);
+        }
+        break;
+
+    case WM_EXITSIZEMOVE:
+    case WM_EXITMENULOOP:
+        {
+            KillTimer(hwnd, SDL_MODAL_LOOP_TIMER);
+        }
+        break;
+
+    case WM_TIMER:
+        {
+            if (wParam == SDL_MODAL_LOOP_TIMER)
+            {
+                SwitchToFiber(g_MainFiber);
+            }
+        }
+        break;
+
     case WM_SIZE:
         {
             switch (wParam) {
@@ -1223,6 +1249,14 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             default:
                 break;
             }
+
+            SwitchToFiber(g_MainFiber);
+        }
+        break;
+
+    case WM_MOVE:
+        {
+            SwitchToFiber(g_MainFiber);
         }
         break;
 
@@ -1729,16 +1763,14 @@ WIN_SendWakeupEvent(_THIS, SDL_Window *window)
     PostMessage(data->hwnd, data->videodata->_SDL_WAKEUP, 0, 0);
 }
 
-void
-WIN_PumpEvents(_THIS)
+void WINAPI
+_EventPumpFiberProc(LPVOID lpFiberParameter)
 {
-    const Uint8 *keystate;
-    MSG msg;
-    DWORD end_ticks = GetTickCount() + 1;
-    int new_messages = 0;
-    SDL_Window *focusWindow;
+    for (;;) {
+        MSG msg;
+        DWORD end_ticks = GetTickCount() + 1;
+        int new_messages = 0;
 
-    if (g_WindowsEnableMessageLoop) {
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             if (g_WindowsMessageHook) {
                 g_WindowsMessageHook(g_WindowsMessageHookData, msg.hwnd, msg.message, msg.wParam, msg.lParam);
@@ -1771,6 +1803,19 @@ WIN_PumpEvents(_THIS)
                 }
             }
         }
+
+        SwitchToFiber(g_MainFiber);
+    }
+}
+
+void
+WIN_PumpEvents(_THIS)
+{
+    const Uint8 *keystate;
+    SDL_Window *focusWindow;
+
+    if (g_WindowsEnableMessageLoop) {
+        SwitchToFiber(g_EventPumpFiber);
     }
 
     /* Windows loses a shift KEYUP event when you have both pressed at once and let go of one.

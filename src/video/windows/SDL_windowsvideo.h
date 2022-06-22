@@ -443,6 +443,9 @@ typedef struct SDL_VideoData
 extern SDL_bool g_WindowsEnableMessageLoop;
 extern SDL_bool g_WindowFrameUsableWhileCursorHidden;
 
+extern LPVOID g_MainFiber;
+extern LPVOID g_EventPumpFiber;
+
 typedef struct IDirect3D9 IDirect3D9;
 extern SDL_bool D3D_LoadDLL( void **pD3DDLL, IDirect3D9 **pDirect3D9Interface );
 

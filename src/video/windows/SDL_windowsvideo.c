@@ -45,6 +45,9 @@ static void WIN_VideoQuit(_THIS);
 SDL_bool g_WindowsEnableMessageLoop = SDL_TRUE;
 SDL_bool g_WindowFrameUsableWhileCursorHidden = SDL_TRUE;
 
+LPVOID g_MainFiber = NULL;
+LPVOID g_EventPumpFiber = NULL;
+
 static void SDLCALL
 UpdateWindowsEnableMessageLoop(void *userdata, const char *name, const char *oldValue, const char *newValue)
 {
@@ -94,11 +97,19 @@ WIN_DeleteDevice(SDL_VideoDevice * device)
     }
     SDL_free(device->driverdata);
     SDL_free(device);
+
+    DeleteFiber(g_EventPumpFiber);
+    ConvertFiberToThread();
+    g_MainFiber = NULL;
+    g_EventPumpFiber = NULL;
 }
 
 static SDL_VideoDevice *
 WIN_CreateDevice(int devindex)
 {
+    g_MainFiber = ConvertThreadToFiber(NULL);
+    g_EventPumpFiber = CreateFiber(0, _EventPumpFiberProc, NULL);
+
     SDL_VideoDevice *device;
     SDL_VideoData *data;
 

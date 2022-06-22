@@ -34,6 +34,8 @@ extern void WIN_PumpEvents(_THIS);
 extern void WIN_SendWakeupEvent(_THIS, SDL_Window *window);
 extern int  WIN_WaitEventTimeout(_THIS, int timeout);
 
+extern void WINAPI _EventPumpFiberProc(LPVOID lpFiberParameter);
+
 #endif /* SDL_windowsevents_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */
